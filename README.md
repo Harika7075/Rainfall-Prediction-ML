@@ -72,3 +72,51 @@ explain in the viva that they come from your own re-run.
    (max_depth=8), Random Forest (n_estimators=100).
 6. **Evaluation** — Accuracy Score, Classification Report, Confusion
    Matrix; best model saved as a `.pkl` file.
+
+## Connecting to a live weather API (NASA POWER)
+
+Your dataset's column names (RH2M, PS, WS50M, PRECTOTCORR, etc.) match
+the parameter names used by **NASA POWER**
+(https://power.larc.nasa.gov/) — a free, no-signup weather/climate API
+run by NASA. This is almost certainly where the original project's data
+came from, so it's a natural fit.
+
+New files in `api/`:
+
+- **`common_features.py`** — shared logic (pressure/wind categories,
+  feature column order) so training and live prediction stay consistent.
+- **`fetch_power_data.py`** — downloads real historical daily weather
+  for a given latitude/longitude and date range, and saves it in this
+  project's exact dataset format. Use this to replace the synthetic
+  dataset with real data, then rerun `notebooks/Rainfall_Prediction.ipynb`
+  to retrain on it.
+
+  ```bash
+  cd api
+  pip install -r requirements.txt
+  python fetch_power_data.py --lat 12.9716 --lon 77.5946 \
+      --district "Bengaluru Urban" --start 20200101 --end 20251231 \
+      --out ../dataset/rainfall_dataset_real.csv
+  ```
+
+- **`predict_live.py`** — fetches the most recent available weather for
+  a location and runs it through your already-trained model to predict
+  rain / no rain right now.
+
+  ```bash
+  cd api
+  python predict_live.py --lat 12.9716 --lon 77.5946 --district "Bengaluru Urban"
+  ```
+
+  This only works out of the box for the 5 districts the model was
+  trained on (Bengaluru Urban, Chikkaballapur, Kolar, Ramanagara,
+  Tumakuru), since the label encoder only knows those. To add a new
+  location, fetch real data for it with `fetch_power_data.py`, add it
+  to the training set, and retrain.
+
+**Note:** these scripts need internet access to reach the NASA POWER
+API — run them on your own machine, not inside a sandboxed notebook
+environment without network access. I wrote and compile-checked the
+code here, but could not make a live request to verify the actual API
+response, so test it once yourself and watch for any small
+error-handling fixes needed on your end.
