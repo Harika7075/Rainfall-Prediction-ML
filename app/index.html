@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rainfall Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#16234F; --navy-2:#1B2A5E; --sky:#3E7CB1; --bg:#EEF1F7;
+    --panel:#FFFFFF; --mist:#D7DEEA; --ink:#1B2030; --ink-soft:#5B6478;
+    --sun:#E3A542; --rain:#2F5D8A; --good:#2F7D5A;
+    --radius:14px;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    box-sizing:border-box;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#10131C; --panel:#171B28; --ink:#EAEDF5; --ink-soft:#9BA3B8;
+      --mist:#2A3142; --navy:#AFC2EE; --navy-2:#8FA6E0;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#10131C; --panel:#171B28; --ink:#EAEDF5; --ink-soft:#9BA3B8;
+    --mist:#2A3142; --navy:#AFC2EE; --navy-2:#8FA6E0;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100%;
+  }
+  .wrap{max-width:980px; margin:0 auto; padding:2.2rem 1.25rem 3rem;}
+  header{margin-bottom:1.6rem;}
+  h1{
+    font-family:'Source Serif 4',Georgia,serif; font-weight:600;
+    font-size:clamp(1.7rem,4vw,2.5rem); margin:0 0 .35rem; color:var(--navy-2);
+    letter-spacing:-0.01em;
+  }
+  header p{margin:0; color:var(--ink-soft); font-size:1rem; max-width:52ch;}
+
+  .hero{
+    display:grid; grid-template-columns:1.1fr 0.9fr; gap:1.1rem;
+    margin-bottom:1.4rem;
+  }
+  @media (max-width:720px){ .hero{grid-template-columns:1fr;} }
+
+  .scene-card, .result-card, .inputs-card{
+    background:var(--panel); border:1px solid var(--mist); border-radius:var(--radius);
+    padding:1.3rem;
+  }
+
+  .scene-card{display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:260px;}
+  .scene-card svg{width:100%; max-width:320px; height:auto;}
+
+  .result-card{display:flex; flex-direction:column; justify-content:center; gap:.6rem;}
+  .result-label{
+    font-family:'Source Serif 4',Georgia,serif; font-weight:600;
+    font-size:clamp(1.6rem,4.5vw,2.1rem); transition:color .35s ease;
+  }
+  .result-label.rain{color:var(--rain);}
+  .result-label.norain{color:var(--sun);}
+  .result-sub{color:var(--ink-soft); font-size:.92rem; line-height:1.5;}
+
+  .gauge-row{display:flex; align-items:center; gap:.9rem; margin-top:.2rem;}
+  .gauge{position:relative; width:84px; height:84px; flex:0 0 auto;}
+  .gauge svg{transform:rotate(-90deg);}
+  .gauge-pct{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:1rem; font-variant-numeric:tabular-nums;
+  }
+  .gauge-text{font-size:.88rem; color:var(--ink-soft); line-height:1.4;}
+
+  .inputs-card h2{
+    font-family:'Source Serif 4',Georgia,serif; font-weight:600; font-size:1.15rem;
+    margin:0 0 1rem; color:var(--navy-2);
+  }
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:1.1rem 1.5rem;}
+  @media (max-width:560px){ .grid{grid-template-columns:1fr;} }
+
+  .field label{
+    display:flex; justify-content:space-between; font-size:.88rem; font-weight:500;
+    margin-bottom:.4rem; color:var(--ink);
+  }
+  .field label span.val{color:var(--sky); font-variant-numeric:tabular-nums; font-weight:600;}
+  input[type=range]{
+    width:100%; appearance:none; height:5px; border-radius:3px;
+    background:var(--mist); outline:none; margin:.2rem 0;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    appearance:none; width:17px; height:17px; border-radius:50%;
+    background:var(--navy-2); border:2px solid var(--panel); box-shadow:0 0 0 1px var(--navy-2);
+    cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:17px; height:17px; border-radius:50%; background:var(--navy-2);
+    border:2px solid var(--panel); box-shadow:0 0 0 1px var(--navy-2); cursor:pointer;
+  }
+  select{
+    width:100%; padding:.5rem .6rem; border-radius:8px; border:1px solid var(--mist);
+    background:var(--panel); color:var(--ink); font-family:inherit; font-size:.92rem;
+  }
+
+  .footnote{
+    margin-top:1.3rem; font-size:.82rem; color:var(--ink-soft); line-height:1.6;
+    border-top:1px solid var(--mist); padding-top:1rem;
+  }
+  .footnote b{color:var(--ink);}
+
+  /* rain animation */
+  .drop{ animation:fall 0.9s linear infinite; opacity:0; }
+  .raining .drop{ opacity:1; }
+  @keyframes fall{
+    0%{ transform:translateY(-4px); opacity:0; }
+    15%{ opacity:.85; }
+    100%{ transform:translateY(14px); opacity:0; }
+  }
+  .sun-rays{ transform-origin:center; animation:spin 24s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){
+    .drop, .sun-rays{ animation:none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Will it rain?</h1>
+    <p>A rainfall classifier trained on historical weather data — Decision Tree, running
+       entirely in this page. Adjust today's conditions below and the prediction updates live.</p>
+  </header>
+
+  <div class="hero">
+    <div class="scene-card" id="sceneCard">
+      <svg viewBox="0 0 200 160" aria-hidden="true">
+        <defs>
+          <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop id="skyTop" offset="0" stop-color="#BFD9F2"/>
+            <stop id="skyBot" offset="1" stop-color="#E9F2FB"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="200" height="160" fill="url(#skyGrad)" rx="10"/>
+        <g class="sun-rays" id="sunRays">
+          <circle cx="100" cy="62" r="26" fill="#E3A542" id="sunCore"/>
+          <g stroke="#E3A542" stroke-width="4" stroke-linecap="round" id="rays">
+            <line x1="100" y1="18" x2="100" y2="6"/>
+            <line x1="144" y1="62" x2="156" y2="62"/>
+            <line x1="100" y1="106" x2="100" y2="118"/>
+            <line x1="56" y1="62" x2="44" y2="62"/>
+            <line x1="131" y1="31" x2="140" y2="22"/>
+            <line x1="131" y1="93" x2="140" y2="102"/>
+            <line x1="69" y1="93" x2="60" y2="102"/>
+            <line x1="69" y1="31" x2="60" y2="22"/>
+          </g>
+        </g>
+        <g id="clouds">
+          <ellipse cx="70" cy="90" rx="38" ry="20" fill="#FFFFFF" id="cloud1"/>
+          <ellipse cx="115" cy="98" rx="46" ry="24" fill="#F3F6FA" id="cloud2"/>
+        </g>
+        <g id="rainGroup">
+          <line class="drop" x1="55" y1="118" x2="51" y2="132" stroke="var(--rain)" stroke-width="3" stroke-linecap="round" style="animation-delay:0s"/>
+          <line class="drop" x1="80" y1="122" x2="76" y2="136" stroke="var(--rain)" stroke-width="3" stroke-linecap="round" style="animation-delay:.2s"/>
+          <line class="drop" x1="105" y1="120" x2="101" y2="134" stroke="var(--rain)" stroke-width="3" stroke-linecap="round" style="animation-delay:.4s"/>
+          <line class="drop" x1="130" y1="124" x2="126" y2="138" stroke="var(--rain)" stroke-width="3" stroke-linecap="round" style="animation-delay:.1s"/>
+          <line class="drop" x1="150" y1="118" x2="146" y2="132" stroke="var(--rain)" stroke-width="3" stroke-linecap="round" style="animation-delay:.3s"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="result-card">
+      <div class="result-label" id="resultLabel">—</div>
+      <div class="gauge-row">
+        <div class="gauge">
+          <svg width="84" height="84" viewBox="0 0 84 84">
+            <circle cx="42" cy="42" r="36" fill="none" stroke="var(--mist)" stroke-width="8"/>
+            <circle id="gaugeArc" cx="42" cy="42" r="36" fill="none" stroke="var(--sky)"
+                    stroke-width="8" stroke-linecap="round"
+                    stroke-dasharray="226.19" stroke-dashoffset="226.19"/>
+          </svg>
+          <div class="gauge-pct" id="gaugePct">0%</div>
+        </div>
+        <div class="gauge-text">Estimated chance of rain, from the leaf node the inputs land on in the trained tree.</div>
+      </div>
+      <div class="result-sub" id="resultSub"></div>
+    </div>
+  </div>
+
+  <div class="inputs-card">
+    <h2>Today's conditions</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="mo">Month <span class="val" id="moVal">Jun</span></label>
+        <select id="mo">
+          <option value="1">January</option><option value="2">February</option>
+          <option value="3">March</option><option value="4">April</option>
+          <option value="5">May</option><option value="6" selected>June</option>
+          <option value="7">July</option><option value="8">August</option>
+          <option value="9">September</option><option value="10">October</option>
+          <option value="11">November</option><option value="12">December</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="rh2m">Relative humidity <span class="val"><span id="rh2mVal">62</span>%</span></label>
+        <input type="range" id="rh2m" min="15" max="100" value="62" step="1">
+      </div>
+      <div class="field">
+        <label for="t2mdew">Dew point <span class="val"><span id="t2mdewVal">22</span>°C</span></label>
+        <input type="range" id="t2mdew" min="0" max="30" value="22" step="0.5">
+      </div>
+      <div class="field">
+        <label for="t2mmax">Max temperature <span class="val"><span id="t2mmaxVal">30</span>°C</span></label>
+        <input type="range" id="t2mmax" min="18" max="42" value="30" step="0.5">
+      </div>
+      <div class="field">
+        <label for="ws50m">Wind speed <span class="val"><span id="ws50mVal">4.7</span> m/s</span></label>
+        <input type="range" id="ws50m" min="0" max="15" value="4.7" step="0.1">
+      </div>
+      <div class="field">
+        <label for="uv">UV index <span class="val"><span id="uvVal">6</span></span></label>
+        <input type="range" id="uv" min="0" max="12" value="6" step="0.5">
+      </div>
+      <div class="field">
+        <label for="ts">Surface temperature <span class="val"><span id="tsVal">31</span>°C</span></label>
+        <input type="range" id="ts" min="18" max="45" value="31" step="0.5">
+      </div>
+    </div>
+
+    <div class="footnote">
+      <b>How this works:</b> a Decision Tree was trained on the project's weather dataset
+      (humidity, temperature, pressure, wind and location features) to classify whether a day
+      had measurable rainfall. The tree's learned rules were exported straight into the
+      JavaScript running on this page, so no server or API call is needed — everything above
+      runs locally in your browser. Test-set accuracy for this tree: <b>76.1%</b>.
+      A few minor factors the tree uses only slightly (day of month, wind direction, district,
+      specific humidity) are held at typical dataset values here for simplicity.
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- Decision tree exported from the trained sklearn model ----
+function predictTree(f){
+  if (f.RH2M <= 70.0050) {
+    if (f.TS <= 31.2950) {
+      if (f.T2MDEW <= 23.1500) {
+        if (f.ALLSKY_SFC_UV_INDEX <= 2.9200) {
+          return {pred: 1, probaRain: 0.5217};
+        } else {
+          if (f.WS50M <= 7.3000) {
+            if (f.T2M_MAX <= 25.7650) {
+              return {pred: 0, probaRain: 0.2109};
+            } else {
+              return {pred: 0, probaRain: 0.1743};
+            }
+          } else {
+            if (f.T2M_MAX <= 27.9350) {
+              return {pred: 0, probaRain: 0.4848};
+            } else {
+              return {pred: 0, probaRain: 0.1200};
+            }
+          }
+        }
+      } else {
+        if (f.ALLSKY_SFC_UV_INDEX <= 6.6750) {
+          return {pred: 1, probaRain: 0.7273};
+        } else {
+          return {pred: 0, probaRain: 0.2857};
+        }
+      }
+    } else {
+      if (f.RH2M <= 67.8000) {
+        if (f.QV2M <= 5.6250) {
+          if (f.WS50M <= 5.0150) {
+            if (f.DY <= 5.5000) {
+              return {pred: 0, probaRain: 0.0000};
+            } else {
+              return {pred: 0, probaRain: 0.1429};
+            }
+          } else {
+            if (f.DISTRICT_ENC <= 2.5000) {
+              return {pred: 0, probaRain: 0.1636};
+            } else {
+              return {pred: 0, probaRain: 0.3939};
+            }
+          }
+        } else {
+          if (f.WD50M <= 17.8150) {
+            if (f.TS <= 38.1650) {
+              return {pred: 0, probaRain: 0.1139};
+            } else {
+              return {pred: 0, probaRain: 0.4091};
+            }
+          } else {
+            if (f.RH2M <= 64.0650) {
+              return {pred: 0, probaRain: 0.0955};
+            } else {
+              return {pred: 0, probaRain: 0.2727};
+            }
+          }
+        }
+      } else {
+        return {pred: 0, probaRain: 0.5000};
+      }
+    }
+  } else {
+    if (f.MO <= 9.5000) {
+      if (f.MO <= 4.5000) {
+        return {pred: 0, probaRain: 0.1034};
+      } else {
+        if (f.WD50M <= 56.0600) {
+          if (f.ALLSKY_SFC_UV_INDEX <= 2.7550) {
+            if (f.QV2M <= 13.4950) {
+              return {pred: 0, probaRain: 0.4921};
+            } else {
+              return {pred: 0, probaRain: 0.2000};
+            }
+          } else {
+            if (f.WS50M <= 8.4300) {
+              return {pred: 1, probaRain: 0.5824};
+            } else {
+              return {pred: 0, probaRain: 0.3000};
+            }
+          }
+        } else {
+          if (f.ALLSKY_SFC_UV_INDEX <= 2.5650) {
+            if (f.QV2M <= 16.1750) {
+              return {pred: 1, probaRain: 0.5515};
+            } else {
+              return {pred: 1, probaRain: 0.8182};
+            }
+          } else {
+            if (f.WD50M <= 290.8500) {
+              return {pred: 1, probaRain: 0.6602};
+            } else {
+              return {pred: 1, probaRain: 0.5894};
+            }
+          }
+        }
+      }
+    } else {
+      if (f.T2MWET <= 23.0800) {
+        return {pred: 0, probaRain: 0.3000};
+      } else {
+        return {pred: 0, probaRain: 0.0435};
+      }
+    }
+  }
+}
+
+// Dataset-mean defaults for features not exposed as sliders
+const DEFAULTS = {
+  YEAR: 2022.5, DY: 15.72, QV2M: 9.85, PS: 96.53, WS50M: 4.68,
+  T2MWET: 24.85, WD50M: 179.09, T2M_MIN: 21.67, PSC_ENC: 1.11,
+  WSC_ENC: 0.93, DISTRICT_ENC: 0, LATITUDE: 13.12, LONGITUDE: 77.57
+};
+
+const monthNames = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+const els = {
+  mo: document.getElementById('mo'),
+  rh2m: document.getElementById('rh2m'),
+  t2mdew: document.getElementById('t2mdew'),
+  t2mmax: document.getElementById('t2mmax'),
+  ws50m: document.getElementById('ws50m'),
+  uv: document.getElementById('uv'),
+  ts: document.getElementById('ts'),
+};
+
+const GAUGE_CIRC = 226.19;
+
+function update(){
+  const mo = parseFloat(els.mo.value);
+  const rh2m = parseFloat(els.rh2m.value);
+  const t2mdew = parseFloat(els.t2mdew.value);
+  const t2mmax = parseFloat(els.t2mmax.value);
+  const ws50m = parseFloat(els.ws50m.value);
+  const uv = parseFloat(els.uv.value);
+  const ts = parseFloat(els.ts.value);
+
+  document.getElementById('moVal').textContent = monthNames[mo];
+  document.getElementById('rh2mVal').textContent = rh2m;
+  document.getElementById('t2mdewVal').textContent = t2mdew;
+  document.getElementById('t2mmaxVal').textContent = t2mmax;
+  document.getElementById('ws50mVal').textContent = ws50m.toFixed(1);
+  document.getElementById('uvVal').textContent = uv;
+  document.getElementById('tsVal').textContent = ts;
+
+  const f = Object.assign({}, DEFAULTS, {
+    MO: mo, RH2M: rh2m, T2MDEW: t2mdew, T2M_MAX: t2mmax,
+    WS50M: ws50m, ALLSKY_SFC_UV_INDEX: uv, TS: ts,
+  });
+
+  const result = predictTree(f);
+  const pct = Math.round(result.probaRain * 100);
+
+  const label = document.getElementById('resultLabel');
+  const sub = document.getElementById('resultSub');
+  const scene = document.getElementById('sceneCard');
+  const gaugeArc = document.getElementById('gaugeArc');
+  const gaugePct = document.getElementById('gaugePct');
+
+  gaugeArc.setAttribute('stroke-dashoffset', GAUGE_CIRC * (1 - result.probaRain));
+  gaugePct.textContent = pct + '%';
+
+  if (result.pred === 1){
+    label.textContent = 'Rain likely';
+    label.className = 'result-label rain';
+    sub.textContent = 'These conditions match patterns the tree associated with rainfall in the training data.';
+    scene.classList.add('raining');
+    gaugeArc.style.stroke = 'var(--rain)';
+    document.getElementById('skyTop').setAttribute('stop-color', '#9FB7D6');
+    document.getElementById('skyBot').setAttribute('stop-color', '#C9D8EA');
+    document.getElementById('sunCore').setAttribute('opacity', '0.15');
+    document.getElementById('rays').setAttribute('opacity', '0.15');
+    document.getElementById('cloud1').setAttribute('fill', '#C7D1DE');
+    document.getElementById('cloud2').setAttribute('fill', '#AAB7C9');
+  } else {
+    label.textContent = 'No rain expected';
+    label.className = 'result-label norain';
+    sub.textContent = 'These conditions match patterns the tree associated with dry days in the training data.';
+    scene.classList.remove('raining');
+    gaugeArc.style.stroke = 'var(--sun)';
+    document.getElementById('skyTop').setAttribute('stop-color', '#BFD9F2');
+    document.getElementById('skyBot').setAttribute('stop-color', '#E9F2FB');
+    document.getElementById('sunCore').setAttribute('opacity', '1');
+    document.getElementById('rays').setAttribute('opacity', '1');
+    document.getElementById('cloud1').setAttribute('fill', '#FFFFFF');
+    document.getElementById('cloud2').setAttribute('fill', '#F3F6FA');
+  }
+}
+
+Object.values(els).forEach(el => el.addEventListener('input', update));
+update();
+</script>
+</body>
+</html>

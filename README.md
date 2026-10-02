@@ -120,3 +120,32 @@ environment without network access. I wrote and compile-checked the
 code here, but could not make a live request to verify the actual API
 response, so test it once yourself and watch for any small
 error-handling fixes needed on your end.
+
+## Web app — live rainfall predictor (`app/index.html`)
+
+A self-contained, single-file web page that lets you adjust today's
+weather (humidity, dew point, max temperature, wind speed, UV index,
+surface temperature, month) with sliders and see a live rain / no-rain
+prediction — no server, no Python runtime, no internet connection
+needed once the page is open.
+
+**How it works:** a Decision Tree (max depth 6, trained on
+`dataset/rainfall_dataset.csv`, test accuracy 76.1%) was exported
+directly from scikit-learn into a JavaScript function
+(`predictTree()` inside `app/index.html`), reusing the exact split
+thresholds the trained tree learned. This is a separate, simplified
+tree trained on **unscaled** features (trees don't need scaling) so
+the thresholds are in plain, human-readable units like "humidity
+<= 70%" — it is not the same saved Random Forest used in the
+notebook, but follows the same preprocessing and dataset.
+
+Open it by double-clicking `app/index.html` in any browser, or host
+it for free on **GitHub Pages**:
+
+```bash
+# from the repo root, after pushing to GitHub:
+# Settings → Pages → Deploy from branch → main → /app folder
+```
+
+This matches the "Web / Mobile Application" item in the project's
+future-scope slide — useful to show live during a viva.
