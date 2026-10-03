@@ -30,9 +30,11 @@ PARAMETERS = [
 MODEL_DIR = "../models"
 
 
-def fetch_latest(lat, lon, lookback_days=10):
-    """POWER has a reporting delay, so pull the last `lookback_days` and
-    use the most recent row that actually has data."""
+def fetch_latest(lat, lon, lookback_days=45):
+    """POWER's near-real-time data can lag by more than two weeks
+    depending on the parameter, so pull a wider window and use the most
+    recent row available. Falls back to filling any still-missing minor
+    fields with dataset defaults rather than failing outright."""
     end = dt.date.today()
     start = end - dt.timedelta(days=lookback_days)
     params = {
@@ -49,11 +51,47 @@ def fetch_latest(lat, lon, lookback_days=10):
     param_data = resp.json()["properties"]["parameter"]
 
     dates = sorted(param_data[PARAMETERS[0]].keys())
-    for d in reversed(dates):  # most recent first
+
+    # Sane physical ranges per parameter. POWER sometimes returns odd
+    # sentinel values (not just -999) for a field that isn't ready yet,
+    # e.g. a wind direction of -73710. Anything outside these bounds is
+    # treated as missing rather than trusted.
+    VALID_RANGE = {
+        "T2M_MAX": (-50, 60), "T2M_MIN": (-50, 60), "RH2M": (0, 100),
+        "T2MDEW": (-60, 50), "T2MWET": (-60, 50), "QV2M": (0, 40),
+        "PS": (50, 110), "WS50M": (0, 100), "WD50M": (0, 360),
+        "ALLSKY_SFC_UV_INDEX": (0, 20), "TS": (-50, 70),
+    }
+
+    def is_valid(param, v):
+        if v is None or v == -999:
+            return False
+        lo, hi = VALID_RANGE.get(param, (-1e9, 1e9))
+        return lo <= v <= hi
+
+    # Core features the model relies on most; minor ones can fall back
+    # to dataset-mean defaults if POWER hasn't published them yet.
+    core = ["RH2M", "T2M_MAX", "T2M_MIN", "WS50M"]
+
+    # First pass: a day where every parameter is present and sane
+    for d in reversed(dates):
         values = {p: param_data[p].get(d) for p in PARAMETERS}
-        if all(v is not None and v != -999 for v in values.values()):
-            return d, values
-    raise RuntimeError("No complete recent data available from POWER yet.")
+        if all(is_valid(p, v) for p, v in values.items()):
+            return d, values, []
+
+    # Second pass: a day where at least the core parameters are sane;
+    # anything else gets reported as "missing" so the caller fills it
+    # with a dataset-mean default instead of trusting a bad value.
+    for d in reversed(dates):
+        values = {p: param_data[p].get(d) for p in PARAMETERS}
+        if all(is_valid(p, values[p]) for p in core):
+            missing = [p for p in PARAMETERS if not is_valid(p, values[p])]
+            return d, values, missing
+
+    raise RuntimeError(
+        f"No usable data in the last {lookback_days} days from POWER for "
+        f"this location. Try increasing --lookback or a different lat/lon."
+    )
 
 
 def main():
@@ -62,10 +100,24 @@ def main():
     ap.add_argument("--lon", type=float, required=True)
     ap.add_argument("--district", type=str, required=True,
                      help="Must be one of the districts the model was trained on")
+    ap.add_argument("--lookback", type=int, default=45,
+                     help="How many past days to search for usable data (default 45)")
     args = ap.parse_args()
 
+    # Dataset-mean fallbacks for any field POWER hasn't published yet
+    PARAM_DEFAULTS = {
+        "T2M_MAX": 29.66, "T2M_MIN": 21.67, "RH2M": 61.51, "T2MDEW": 21.95,
+        "T2MWET": 24.85, "QV2M": 9.85, "PS": 96.53, "WS50M": 4.68,
+        "WD50M": 179.09, "ALLSKY_SFC_UV_INDEX": 5.97, "TS": 30.66,
+    }
+
     print(f"Fetching latest available weather for ({args.lat}, {args.lon}) ...")
-    date_str, values = fetch_latest(args.lat, args.lon)
+    date_str, values, missing = fetch_latest(args.lat, args.lon, args.lookback)
+    if missing:
+        print(f"Note: POWER hasn't published {missing} for {date_str} yet; "
+              f"using typical dataset values for those.")
+        for p in missing:
+            values[p] = PARAM_DEFAULTS[p]
     print(f"Using data from {date_str}: {values}")
 
     with open(f"{MODEL_DIR}/scaler.pkl", "rb") as f:

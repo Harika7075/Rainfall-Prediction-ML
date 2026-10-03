@@ -191,8 +191,18 @@
   </div>
 
   <div class="inputs-card">
-    <h2>Today's conditions</h2>
+    <h2>Location &amp; date</h2>
     <div class="grid">
+      <div class="field">
+        <label for="district">District</label>
+        <select id="district">
+          <option value="0" data-lat="12.9716" data-lon="77.5946">Bengaluru Urban</option>
+          <option value="1" data-lat="13.4355" data-lon="77.7315">Chikkaballapur</option>
+          <option value="2" data-lat="13.1372" data-lon="78.1298">Kolar</option>
+          <option value="3" data-lat="12.7217" data-lon="77.2812">Ramanagara</option>
+          <option value="4" data-lat="13.3392" data-lon="77.1010">Tumakuru</option>
+        </select>
+      </div>
       <div class="field">
         <label for="mo">Month <span class="val" id="moVal">Jun</span></label>
         <select id="mo">
@@ -205,6 +215,14 @@
         </select>
       </div>
       <div class="field">
+        <label for="dy">Day of month <span class="val"><span id="dyVal">15</span></span></label>
+        <input type="range" id="dy" min="1" max="31" value="15" step="1">
+      </div>
+    </div>
+
+    <h2 style="margin-top:1.6rem;">Humidity &amp; pressure</h2>
+    <div class="grid">
+      <div class="field">
         <label for="rh2m">Relative humidity <span class="val"><span id="rh2mVal">62</span>%</span></label>
         <input type="range" id="rh2m" min="15" max="100" value="62" step="1">
       </div>
@@ -213,20 +231,44 @@
         <input type="range" id="t2mdew" min="0" max="30" value="22" step="0.5">
       </div>
       <div class="field">
-        <label for="t2mmax">Max temperature <span class="val"><span id="t2mmaxVal">30</span>°C</span></label>
-        <input type="range" id="t2mmax" min="18" max="42" value="30" step="0.5">
+        <label for="qv2m">Specific humidity <span class="val"><span id="qv2mVal">10</span> g/kg</span></label>
+        <input type="range" id="qv2m" min="0" max="25" value="10" step="0.5">
       </div>
       <div class="field">
+        <label for="ps">Surface pressure <span class="val"><span id="psVal">96.5</span> kPa</span></label>
+        <input type="range" id="ps" min="90" max="100" value="96.5" step="0.1">
+      </div>
+    </div>
+
+    <h2 style="margin-top:1.6rem;">Temperature</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="t2mmax">Max temperature <span class="val"><span id="t2mmaxVal">30</span>°C</span></label>
+        <input type="range" id="t2mmax" min="15" max="45" value="30" step="0.5">
+      </div>
+      <div class="field">
+        <label for="t2mmin">Min temperature <span class="val"><span id="t2mminVal">22</span>°C</span></label>
+        <input type="range" id="t2mmin" min="5" max="35" value="22" step="0.5">
+      </div>
+      <div class="field">
+        <label for="ts">Surface temperature <span class="val"><span id="tsVal">31</span>°C</span></label>
+        <input type="range" id="ts" min="10" max="50" value="31" step="0.5">
+      </div>
+    </div>
+
+    <h2 style="margin-top:1.6rem;">Wind &amp; sun</h2>
+    <div class="grid">
+      <div class="field">
         <label for="ws50m">Wind speed <span class="val"><span id="ws50mVal">4.7</span> m/s</span></label>
-        <input type="range" id="ws50m" min="0" max="15" value="4.7" step="0.1">
+        <input type="range" id="ws50m" min="0" max="20" value="4.7" step="0.1">
+      </div>
+      <div class="field">
+        <label for="wd50m">Wind direction <span class="val"><span id="wd50mVal">179</span>°</span></label>
+        <input type="range" id="wd50m" min="0" max="360" value="179" step="1">
       </div>
       <div class="field">
         <label for="uv">UV index <span class="val"><span id="uvVal">6</span></span></label>
         <input type="range" id="uv" min="0" max="12" value="6" step="0.5">
-      </div>
-      <div class="field">
-        <label for="ts">Surface temperature <span class="val"><span id="tsVal">31</span>°C</span></label>
-        <input type="range" id="ts" min="18" max="45" value="31" step="0.5">
       </div>
     </div>
 
@@ -236,8 +278,8 @@
       had measurable rainfall. The tree's learned rules were exported straight into the
       JavaScript running on this page, so no server or API call is needed — everything above
       runs locally in your browser. Test-set accuracy for this tree: <b>76.1%</b>.
-      A few minor factors the tree uses only slightly (day of month, wind direction, district,
-      specific humidity) are held at typical dataset values here for simplicity.
+      Year and wet-bulb temperature (barely used by the tree) are held at typical dataset
+      values for simplicity.
     </div>
   </div>
 </div>
@@ -352,47 +394,81 @@ function predictTree(f){
   }
 }
 
-// Dataset-mean defaults for features not exposed as sliders
-const DEFAULTS = {
-  YEAR: 2022.5, DY: 15.72, QV2M: 9.85, PS: 96.53, WS50M: 4.68,
-  T2MWET: 24.85, WD50M: 179.09, T2M_MIN: 21.67, PSC_ENC: 1.11,
-  WSC_ENC: 0.93, DISTRICT_ENC: 0, LATITUDE: 13.12, LONGITUDE: 77.57
-};
+// Only genuinely negligible-importance features stay fixed
+const DEFAULTS = { YEAR: 2022.5, T2MWET: 24.85 };
 
 const monthNames = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+// Same thresholds as api/common_features.py — must stay in sync
+function pressureCategoryEnc(ps){
+  // alphabetical encoding used at training time: High=0, Low=1, Medium=2
+  if (ps < 96.2) return 1;       // Low
+  if (ps < 97.0) return 2;       // Medium
+  return 0;                      // High
+}
+function windCategoryEnc(ws){
+  // alphabetical encoding: Calm=0, Moderate=1, Strong=2
+  if (ws < 3) return 0;          // Calm
+  if (ws < 7) return 1;          // Moderate
+  return 2;                      // Strong
+}
+
 const els = {
+  district: document.getElementById('district'),
   mo: document.getElementById('mo'),
+  dy: document.getElementById('dy'),
   rh2m: document.getElementById('rh2m'),
   t2mdew: document.getElementById('t2mdew'),
+  qv2m: document.getElementById('qv2m'),
+  ps: document.getElementById('ps'),
   t2mmax: document.getElementById('t2mmax'),
-  ws50m: document.getElementById('ws50m'),
-  uv: document.getElementById('uv'),
+  t2mmin: document.getElementById('t2mmin'),
   ts: document.getElementById('ts'),
+  ws50m: document.getElementById('ws50m'),
+  wd50m: document.getElementById('wd50m'),
+  uv: document.getElementById('uv'),
 };
 
 const GAUGE_CIRC = 226.19;
 
 function update(){
+  const districtOpt = els.district.options[els.district.selectedIndex];
+  const districtEnc = parseFloat(districtOpt.value);
+  const lat = parseFloat(districtOpt.dataset.lat);
+  const lon = parseFloat(districtOpt.dataset.lon);
+
   const mo = parseFloat(els.mo.value);
+  const dy = parseFloat(els.dy.value);
   const rh2m = parseFloat(els.rh2m.value);
   const t2mdew = parseFloat(els.t2mdew.value);
+  const qv2m = parseFloat(els.qv2m.value);
+  const ps = parseFloat(els.ps.value);
   const t2mmax = parseFloat(els.t2mmax.value);
-  const ws50m = parseFloat(els.ws50m.value);
-  const uv = parseFloat(els.uv.value);
+  const t2mmin = parseFloat(els.t2mmin.value);
   const ts = parseFloat(els.ts.value);
+  const ws50m = parseFloat(els.ws50m.value);
+  const wd50m = parseFloat(els.wd50m.value);
+  const uv = parseFloat(els.uv.value);
 
   document.getElementById('moVal').textContent = monthNames[mo];
+  document.getElementById('dyVal').textContent = dy;
   document.getElementById('rh2mVal').textContent = rh2m;
   document.getElementById('t2mdewVal').textContent = t2mdew;
+  document.getElementById('qv2mVal').textContent = qv2m;
+  document.getElementById('psVal').textContent = ps.toFixed(1);
   document.getElementById('t2mmaxVal').textContent = t2mmax;
-  document.getElementById('ws50mVal').textContent = ws50m.toFixed(1);
-  document.getElementById('uvVal').textContent = uv;
+  document.getElementById('t2mminVal').textContent = t2mmin;
   document.getElementById('tsVal').textContent = ts;
+  document.getElementById('ws50mVal').textContent = ws50m.toFixed(1);
+  document.getElementById('wd50mVal').textContent = Math.round(wd50m);
+  document.getElementById('uvVal').textContent = uv;
 
   const f = Object.assign({}, DEFAULTS, {
-    MO: mo, RH2M: rh2m, T2MDEW: t2mdew, T2M_MAX: t2mmax,
-    WS50M: ws50m, ALLSKY_SFC_UV_INDEX: uv, TS: ts,
+    MO: mo, DY: dy, RH2M: rh2m, T2MDEW: t2mdew, QV2M: qv2m, PS: ps,
+    T2M_MAX: t2mmax, T2M_MIN: t2mmin, TS: ts, WS50M: ws50m, WD50M: wd50m,
+    ALLSKY_SFC_UV_INDEX: uv, DISTRICT_ENC: districtEnc,
+    LATITUDE: lat, LONGITUDE: lon,
+    PSC_ENC: pressureCategoryEnc(ps), WSC_ENC: windCategoryEnc(ws50m),
   });
 
   const result = predictTree(f);
@@ -434,7 +510,10 @@ function update(){
   }
 }
 
-Object.values(els).forEach(el => el.addEventListener('input', update));
+Object.values(els).forEach(el => {
+  el.addEventListener('input', update);
+  el.addEventListener('change', update); // belt-and-suspenders for <select>
+});
 update();
 </script>
 </body>
