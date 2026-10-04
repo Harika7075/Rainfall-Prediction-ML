@@ -192,16 +192,23 @@
 
   <div class="inputs-card">
     <h2>Location &amp; date</h2>
+    <div class="field" style="margin-bottom:1.1rem;">
+      <label for="placeSearch">Place name — any city, district or town</label>
+      <div style="display:flex; gap:.5rem;">
+        <input type="text" id="placeSearch" placeholder="e.g. Chennai, or Paris, or Nairobi"
+               style="flex:1; padding:.5rem .7rem; border-radius:8px; border:1px solid var(--mist); background:var(--panel); color:var(--ink); font-family:inherit; font-size:.92rem;">
+        <button type="button" id="findBtn" style="padding:.5rem 1rem; border-radius:8px; border:none; background:var(--navy-2); color:#fff; font-weight:600; cursor:pointer; font-size:.88rem;">Find</button>
+      </div>
+      <div id="placeStatus" style="font-size:.82rem; color:var(--ink-soft); margin-top:.4rem; min-height:1.2em;">Not looked up yet — using default coordinates below.</div>
+    </div>
     <div class="grid">
       <div class="field">
-        <label for="district">District</label>
-        <select id="district">
-          <option value="0" data-lat="12.9716" data-lon="77.5946">Bengaluru Urban</option>
-          <option value="1" data-lat="13.4355" data-lon="77.7315">Chikkaballapur</option>
-          <option value="2" data-lat="13.1372" data-lon="78.1298">Kolar</option>
-          <option value="3" data-lat="12.7217" data-lon="77.2812">Ramanagara</option>
-          <option value="4" data-lat="13.3392" data-lon="77.1010">Tumakuru</option>
-        </select>
+        <label for="lat">Latitude <span class="val"><span id="latVal">12.9716</span></span></label>
+        <input type="number" id="lat" value="12.9716" step="0.0001" style="width:100%; padding:.45rem .6rem; border-radius:8px; border:1px solid var(--mist); background:var(--panel); color:var(--ink); font-family:inherit; font-size:.92rem;">
+      </div>
+      <div class="field">
+        <label for="lon">Longitude <span class="val"><span id="lonVal">77.5946</span></span></label>
+        <input type="number" id="lon" value="77.5946" step="0.0001" style="width:100%; padding:.45rem .6rem; border-radius:8px; border:1px solid var(--mist); background:var(--panel); color:var(--ink); font-family:inherit; font-size:.92rem;">
       </div>
       <div class="field">
         <label for="mo">Month <span class="val" id="moVal">Jun</span></label>
@@ -274,18 +281,23 @@
 
     <div class="footnote">
       <b>How this works:</b> a Decision Tree was trained on the project's weather dataset
-      (humidity, temperature, pressure, wind and location features) to classify whether a day
-      had measurable rainfall. The tree's learned rules were exported straight into the
-      JavaScript running on this page, so no server or API call is needed — everything above
-      runs locally in your browser. Test-set accuracy for this tree: <b>76.1%</b>.
-      Year and wet-bulb temperature (barely used by the tree) are held at typical dataset
-      values for simplicity.
+      (humidity, temperature, pressure, wind and location) to classify whether a day had
+      measurable rainfall. Earlier versions of this tool fixed location to 5 pre-set
+      districts; this version instead uses plain latitude/longitude, so it accepts
+      <b>any place name</b> via the free lookup above, or manual coordinates. The tree's
+      rules were exported straight into the JavaScript running on this page — no server or
+      API call needed for the prediction itself, only for the optional place-name lookup.
+      Test-set accuracy: <b>76.1%</b>. Year and wet-bulb temperature (negligible importance)
+      are held at typical dataset values for simplicity.
     </div>
   </div>
 </div>
 
 <script>
 // ---- Decision tree exported from the trained sklearn model ----
+// Retrained WITHOUT a fixed district category — LATITUDE/LONGITUDE
+// carry the location signal instead, so this works for any place,
+// not just the 5 districts in the original training dataset.
 function predictTree(f){
   if (f.RH2M <= 70.0050) {
     if (f.TS <= 31.2950) {
@@ -324,10 +336,10 @@ function predictTree(f){
               return {pred: 0, probaRain: 0.1429};
             }
           } else {
-            if (f.DISTRICT_ENC <= 2.5000) {
-              return {pred: 0, probaRain: 0.1636};
-            } else {
+            if (f.LONGITUDE <= 77.4379) {
               return {pred: 0, probaRain: 0.3939};
+            } else {
+              return {pred: 0, probaRain: 0.1636};
             }
           }
         } else {
@@ -414,7 +426,8 @@ function windCategoryEnc(ws){
 }
 
 const els = {
-  district: document.getElementById('district'),
+  lat: document.getElementById('lat'),
+  lon: document.getElementById('lon'),
   mo: document.getElementById('mo'),
   dy: document.getElementById('dy'),
   rh2m: document.getElementById('rh2m'),
@@ -431,11 +444,46 @@ const els = {
 
 const GAUGE_CIRC = 226.19;
 
+// Free, no-key geocoding lookup (Open-Meteo) so ANY place name can be
+// turned into coordinates. Needs internet access in your own browser;
+// if it fails (offline, or blocked in a sandboxed preview), the
+// latitude/longitude fields above can still be typed in by hand —
+// the prediction works the same either way.
+async function findPlace(){
+  const q = document.getElementById('placeSearch').value.trim();
+  const status = document.getElementById('placeStatus');
+  if (!q){ status.textContent = 'Type a place name first.'; return; }
+  status.textContent = 'Looking up "' + q + '" ...';
+  try {
+    const url = 'https://geocoding-api.open-meteo.com/v1/search?name=' +
+                encodeURIComponent(q) + '&count=1&language=en&format=json';
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Lookup failed (' + res.status + ')');
+    const data = await res.json();
+    if (!data.results || !data.results.length){
+      status.textContent = 'No match found for "' + q + '". Try a nearby bigger city, or enter latitude/longitude manually below.';
+      return;
+    }
+    const r = data.results[0];
+    els.lat.value = r.latitude.toFixed(4);
+    els.lon.value = r.longitude.toFixed(4);
+    const place = [r.name, r.admin1, r.country].filter(Boolean).join(', ');
+    status.textContent = 'Found: ' + place + '  (' + r.latitude.toFixed(4) + ', ' + r.longitude.toFixed(4) + ')';
+    update();
+  } catch (err) {
+    status.textContent = 'Could not reach the location lookup (no internet, or blocked in this preview). Enter latitude/longitude manually below instead.';
+  }
+}
+document.getElementById('findBtn').addEventListener('click', findPlace);
+document.getElementById('placeSearch').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter'){ e.preventDefault(); findPlace(); }
+});
+
 function update(){
-  const districtOpt = els.district.options[els.district.selectedIndex];
-  const districtEnc = parseFloat(districtOpt.value);
-  const lat = parseFloat(districtOpt.dataset.lat);
-  const lon = parseFloat(districtOpt.dataset.lon);
+  const lat = parseFloat(els.lat.value) || 0;
+  const lon = parseFloat(els.lon.value) || 0;
+  document.getElementById('latVal').textContent = lat;
+  document.getElementById('lonVal').textContent = lon;
 
   const mo = parseFloat(els.mo.value);
   const dy = parseFloat(els.dy.value);
@@ -466,8 +514,7 @@ function update(){
   const f = Object.assign({}, DEFAULTS, {
     MO: mo, DY: dy, RH2M: rh2m, T2MDEW: t2mdew, QV2M: qv2m, PS: ps,
     T2M_MAX: t2mmax, T2M_MIN: t2mmin, TS: ts, WS50M: ws50m, WD50M: wd50m,
-    ALLSKY_SFC_UV_INDEX: uv, DISTRICT_ENC: districtEnc,
-    LATITUDE: lat, LONGITUDE: lon,
+    ALLSKY_SFC_UV_INDEX: uv, LATITUDE: lat, LONGITUDE: lon,
     PSC_ENC: pressureCategoryEnc(ps), WSC_ENC: windCategoryEnc(ws50m),
   });
 

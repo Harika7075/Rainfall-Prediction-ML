@@ -11,9 +11,10 @@ Rainfall_Prediction_Project/
 │   ├── Rainfall_Prediction.ipynb   <- MAIN NOTEBOOK (already run, with outputs)
 │   └── rainfall_prediction.py      <- same pipeline as a plain script
 │── models/
-│   ├── random_forest_model.pkl
+│   ├── logistic_regression_model.pkl   <- best-performing model (no district dependency)
 │   ├── scaler.pkl
-│   └── label_encoder_district.pkl
+│   ├── label_encoder_psc.pkl
+│   └── label_encoder_wsc.pkl
 │── graphs/
 │   ├── Rainfall_Class_Count.png
 │   ├── Rainfall_Distribution.png
@@ -48,9 +49,10 @@ and 6 years, with realistic seasonal rainfall patterns (monsoon months
 wetter, summer drier).
 
 **Important — accuracy will differ from your report:** with this
-generated data, Random Forest is the best model at **76.03%** accuracy,
-not the 91.51% your report states. That number cannot be reproduced
-without your original dataset, since it depends on the exact data. If
+generated data, Logistic Regression is the best model at **75.98%**
+accuracy, not the 91.51% your report states. That number cannot be
+reproduced without your original dataset, since it depends on the
+exact data. If
 you still have the original `.csv`/`.ipynb` anywhere (email attachments,
 Colab's "Recent" list, browser downloads folder, Google Drive trash),
 recovering that is the only way to get back the exact 91.51% figure.
@@ -60,10 +62,13 @@ explain in the viva that they come from your own re-run.
 ## Pipeline summary (matches report Section 05/06)
 
 1. **Data Collection** — load the CSV.
-2. **Preprocessing** — check missing values; Label Encode DISTRICT, PSC,
-   WSC; create `Rainfall_Class` from `PRECTOTCORR`; train/test split
-   80/20 (before scaling, to avoid leakage); StandardScaler fit on train
-   only.
+2. **Preprocessing** — check missing values; Label Encode PSC and WSC;
+   create `Rainfall_Class` from `PRECTOTCORR`; train/test split 80/20
+   (before scaling, to avoid leakage); StandardScaler fit on train only.
+   (DISTRICT as a named category was later removed in favour of
+   LATITUDE/LONGITUDE — see "Connecting to a live weather API" below —
+   so the model generalizes to any location, not just the 5 original
+   districts.)
 3. **EDA** — Rainfall Class Count, Rainfall Distribution, Correlation
    Heatmap.
 4. **Feature Selection** — all weather/time/location columns except the
@@ -98,21 +103,25 @@ New files in `api/`:
       --district "Bengaluru Urban" --start 20200101 --end 20251231 \
       --out ../dataset/rainfall_dataset_real.csv
   ```
+  (`--district` here is just a label stored in the CSV for your own
+  reference — any name works, it isn't used to restrict anything.)
 
 - **`predict_live.py`** — fetches the most recent available weather for
-  a location and runs it through your already-trained model to predict
-  rain / no rain right now.
+  **any** latitude/longitude and runs it through your already-trained
+  model to predict rain / no rain right now.
 
   ```bash
   cd api
-  python predict_live.py --lat 12.9716 --lon 77.5946 --district "Bengaluru Urban"
+  python predict_live.py --lat 13.0827 --lon 80.2707 --place "Chennai"
   ```
 
-  This only works out of the box for the 5 districts the model was
-  trained on (Bengaluru Urban, Chikkaballapur, Kolar, Ramanagara,
-  Tumakuru), since the label encoder only knows those. To add a new
-  location, fetch real data for it with `fetch_power_data.py`, add it
-  to the training set, and retrain.
+  Earlier versions of this script required the location to be one of
+  5 pre-set districts, because DISTRICT was trained as a fixed named
+  category — a label encoder like that only ever recognizes the exact
+  names it was shown. That's since been fixed: the model is retrained
+  on LATITUDE/LONGITUDE instead of a district name, so any coordinates
+  work, anywhere in the world. `--place` is optional and only affects
+  the printed label.
 
 **Note:** these scripts need internet access to reach the NASA POWER
 API — run them on your own machine, not inside a sandboxed notebook
@@ -123,11 +132,21 @@ error-handling fixes needed on your end.
 
 ## Web app — live rainfall predictor (`app/index.html`)
 
-A self-contained, single-file web page that lets you adjust today's
-weather (humidity, dew point, max temperature, wind speed, UV index,
-surface temperature, month) with sliders and see a live rain / no-rain
-prediction — no server, no Python runtime, no internet connection
+A self-contained, single-file web page where you type **any place
+name** (not just the 5 original districts), enter today's weather
+(humidity, dew point, specific humidity, pressure, both temperatures,
+surface temperature, wind speed/direction, UV index, month, day), and
+get a live rain / no-rain prediction — no server, no Python runtime
 needed once the page is open.
+
+**Finding a location:** type a place name (city, district, town —
+anywhere) and click **Find**; it looks up latitude/longitude using the
+free [Open-Meteo Geocoding API](https://open-meteo.com) (no sign-up
+needed). This needs internet access and works in a normal browser; if
+it can't reach the API (offline, or a sandboxed preview blocking
+external requests), just type latitude/longitude into the two fields
+below it by hand instead — the prediction works exactly the same way
+either way.
 
 **How it works:** a Decision Tree (max depth 6, trained on
 `dataset/rainfall_dataset.csv`, test accuracy 76.1%) was exported
@@ -136,8 +155,8 @@ directly from scikit-learn into a JavaScript function
 thresholds the trained tree learned. This is a separate, simplified
 tree trained on **unscaled** features (trees don't need scaling) so
 the thresholds are in plain, human-readable units like "humidity
-<= 70%" — it is not the same saved Random Forest used in the
-notebook, but follows the same preprocessing and dataset.
+<= 70%". Like the notebook's saved model, it uses LATITUDE/LONGITUDE
+rather than a fixed district category, so it works for any location.
 
 Open it by double-clicking `app/index.html` in any browser, or host
 it for free on **GitHub Pages**:

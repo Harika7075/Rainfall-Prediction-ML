@@ -11,6 +11,13 @@ Pipeline (matches project report Section 05 & 06):
 6. Model Training (80/20 split)
 7. Model Evaluation (Accuracy, Classification Report, Confusion Matrix)
 8. Save best model
+
+NOTE: DISTRICT (as a fixed named category) is NOT used as a model
+feature. A label encoder for district names only ever recognizes the
+exact names it was trained on, so it breaks the moment you ask about
+anywhere new. LATITUDE/LONGITUDE are used instead, which generalizes
+to any location without retraining. See api/predict_live.py for a
+live prediction script that works for any place.
 """
 import pandas as pd
 import numpy as np
@@ -25,13 +32,13 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-GRAPH_DIR = "/home/claude/rainproj/graphs"
-MODEL_DIR = "/home/claude/rainproj/models"
+GRAPH_DIR = "../graphs"
+MODEL_DIR = "../models"
 
 # ----------------------------------------------------------------
 # 1. DATA COLLECTION
 # ----------------------------------------------------------------
-df = pd.read_csv("/home/claude/rainproj/dataset/rainfall_dataset.csv")
+df = pd.read_csv("../dataset/rainfall_dataset.csv")
 print("Dataset shape:", df.shape)
 print(df.head())
 
@@ -41,22 +48,34 @@ print(df.head())
 # 2a. Check missing values
 print("\nMissing values:\n", df.isnull().sum())
 
-# 2b. Label Encoding for DISTRICT
-le_district = LabelEncoder()
-df["DISTRICT"] = le_district.fit_transform(df["DISTRICT"])
-
-# Also encode the categorical PSC / WSC columns (needed for the model)
+# 2b. Label Encoding for the categorical PSC / WSC columns
 le_psc = LabelEncoder()
 le_wsc = LabelEncoder()
-df["PSC"] = le_psc.fit_transform(df["PSC"])
-df["WSC"] = le_wsc.fit_transform(df["WSC"])
+df["PSC_ENC"] = le_psc.fit_transform(df["PSC"])
+df["WSC_ENC"] = le_wsc.fit_transform(df["WSC"])
 
 # 2c. Create target variable: Rainfall_Class
 df["Rainfall_Class"] = (df["PRECTOTCORR"] > 0).astype(int)
 print("\nRainfall_Class distribution:\n", df["Rainfall_Class"].value_counts())
 
-# 2d. Features and target (PRECTOTCORR excluded to avoid data leakage)
-X = df.drop(["PRECTOTCORR", "Rainfall_Class"], axis=1)
+# 2d. Features and target
+# PRECTOTCORR excluded (target is derived from it -> data leakage).
+# DISTRICT (text) and the original PSC/WSC text columns excluded too,
+# since their encoded numeric versions (PSC_ENC, WSC_ENC) are used
+# instead, and DISTRICT's name itself is dropped in favour of its
+# LATITUDE/LONGITUDE, which already exist as columns.
+#
+# Columns are selected explicitly, in a fixed order (matching
+# api/common_features.py's FEATURE_ORDER exactly) rather than relying
+# on pandas' column insertion order from .drop() — scikit-learn
+# enforces strict feature-name/order matching at predict time, so any
+# script using the saved model/scaler MUST build its input this way.
+FEATURE_ORDER = [
+    "YEAR", "MO", "DY", "RH2M", "T2MDEW", "QV2M", "PS", "WS50M",
+    "T2MWET", "WD50M", "T2M_MAX", "T2M_MIN", "ALLSKY_SFC_UV_INDEX", "TS",
+    "PSC_ENC", "WSC_ENC", "LATITUDE", "LONGITUDE",
+]
+X = df[FEATURE_ORDER]
 y = df["Rainfall_Class"]
 
 # 2e. Train/test split BEFORE scaling (avoids leakage)
@@ -73,7 +92,8 @@ X_test_scaled = scaler.transform(X_test)
 # 3. EXPLORATORY DATA ANALYSIS
 # ----------------------------------------------------------------
 plt.figure(figsize=(6, 4))
-sns.countplot(x="Rainfall_Class", data=df, palette=["#1B2A5E", "#2E75B6"])
+sns.countplot(x="Rainfall_Class", data=df, hue="Rainfall_Class",
+              palette=["#1B2A5E", "#2E75B6"], legend=False)
 plt.title("Rainfall Class Count")
 plt.xlabel("Rainfall Class (0 = No Rain, 1 = Rain)")
 plt.ylabel("Count")
@@ -90,7 +110,8 @@ plt.savefig(f"{GRAPH_DIR}/Rainfall_Distribution.png", dpi=150)
 plt.close()
 
 plt.figure(figsize=(10, 8))
-sns.heatmap(df.corr(numeric_only=True), cmap="coolwarm", annot=False)
+sns.heatmap(df.drop(columns=["DISTRICT", "PSC", "WSC"]).corr(numeric_only=True),
+            cmap="coolwarm", annot=False)
 plt.title("Correlation Heatmap")
 plt.tight_layout()
 plt.savefig(f"{GRAPH_DIR}/Correlation_Heatmap.png", dpi=150)
@@ -166,8 +187,10 @@ with open(f"{MODEL_DIR}/{best_model_name.lower().replace(' ', '_')}_model.pkl", 
     pickle.dump(best_model, f)
 with open(f"{MODEL_DIR}/scaler.pkl", "wb") as f:
     pickle.dump(scaler, f)
-with open(f"{MODEL_DIR}/label_encoder_district.pkl", "wb") as f:
-    pickle.dump(le_district, f)
+with open(f"{MODEL_DIR}/label_encoder_psc.pkl", "wb") as f:
+    pickle.dump(le_psc, f)
+with open(f"{MODEL_DIR}/label_encoder_wsc.pkl", "wb") as f:
+    pickle.dump(le_wsc, f)
 
 print(f"\nSaved best model to {MODEL_DIR}/{best_model_name.lower().replace(' ', '_')}_model.pkl")
 print("Project run complete.")
