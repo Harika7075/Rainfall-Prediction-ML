@@ -190,8 +190,47 @@
   <div class="panel">
 
     <div class="section-title">Location</div>
+
+    <div class="field" style="margin-bottom:1.2rem;">
+      <label for="citySelect">Quick pick — no typing, no internet needed</label>
+      <select id="citySelect">
+        <option value="">Choose a city…</option>
+        <optgroup label="India">
+          <option value="12.9716,77.5946">Bengaluru</option>
+          <option value="13.0827,80.2707">Chennai</option>
+          <option value="19.0760,72.8777">Mumbai</option>
+          <option value="28.7041,77.1025">Delhi</option>
+          <option value="22.5726,88.3639">Kolkata</option>
+          <option value="17.3850,78.4867">Hyderabad</option>
+          <option value="18.5204,73.8567">Pune</option>
+          <option value="23.0225,72.5714">Ahmedabad</option>
+          <option value="26.9124,75.7873">Jaipur</option>
+          <option value="26.8467,80.9462">Lucknow</option>
+          <option value="23.2599,77.4126">Bhopal</option>
+          <option value="30.7333,76.7794">Chandigarh</option>
+          <option value="9.9312,76.2673">Kochi</option>
+          <option value="15.2993,74.1240">Goa</option>
+          <option value="17.6868,83.2185">Visakhapatnam</option>
+          <option value="21.1458,79.0882">Nagpur</option>
+          <option value="22.7196,75.8577">Indore</option>
+          <option value="11.0168,76.9558">Coimbatore</option>
+          <option value="8.5241,76.9366">Thiruvananthapuram</option>
+          <option value="26.1445,91.7362">Guwahati</option>
+        </optgroup>
+        <optgroup label="Other countries">
+          <option value="51.5072,-0.1276">London</option>
+          <option value="40.7128,-74.0060">New York</option>
+          <option value="35.6762,139.6503">Tokyo</option>
+          <option value="-33.8688,151.2093">Sydney</option>
+          <option value="48.8566,2.3522">Paris</option>
+          <option value="25.2048,55.2708">Dubai</option>
+          <option value="1.3521,103.8198">Singapore</option>
+        </optgroup>
+      </select>
+    </div>
+
     <div class="place-row">
-      <input type="text" id="placeSearch" placeholder="e.g. Chennai, or Paris, or Nairobi">
+      <input type="text" id="placeSearch" placeholder="Or type any other place — e.g. Nairobi, Jakarta…">
       <button type="button" class="btn-brass" id="findBtn">Find</button>
     </div>
     <div class="place-status" id="placeStatus">Not looked up yet — using the default coordinates below.</div>
@@ -461,6 +500,18 @@ async function findPlace(){
 document.getElementById('findBtn').addEventListener('click', findPlace);
 document.getElementById('placeSearch').addEventListener('keydown', (e) => {
   if (e.key === 'Enter'){ e.preventDefault(); findPlace(); }
+});
+
+document.getElementById('citySelect').addEventListener('change', (e) => {
+  const val = e.target.value;
+  if (!val) return;
+  const [lat, lon] = val.split(',');
+  els.lat.value = lat;
+  els.lon.value = lon;
+  const cityName = e.target.options[e.target.selectedIndex].textContent;
+  document.getElementById('placeStatus').textContent = 'Using: ' + cityName + '  (' + lat + ', ' + lon + ')';
+  document.getElementById('placeSearch').value = '';
+  update();
 });
 
 function update(){
