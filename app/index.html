@@ -6,210 +6,208 @@
 <title>Rainfall Predictor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --navy:#16234F; --navy-2:#1B2A5E; --sky:#3E7CB1; --bg:#EEF1F7;
-    --panel:#FFFFFF; --mist:#D7DEEA; --ink:#1B2030; --ink-soft:#5B6478;
-    --sun:#E3A542; --rain:#2F5D8A; --good:#2F7D5A;
-    --radius:14px;
+    --ink:#10182B; --paper:#F3F0E7; --panel:#FBF9F3; --line:#DCD4BE;
+    --indigo:#1F3A63; --teal:#2F8F80; --storm:#2C5C86; --brass:#A67C3D;
+    --ink-soft:#5B5A4F; --good:#2F8F80;
     padding-top:env(safe-area-inset-top,0px);
     padding-bottom:env(safe-area-inset-bottom,0px);
-    box-sizing:border-box;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#10131C; --panel:#171B28; --ink:#EAEDF5; --ink-soft:#9BA3B8;
-      --mist:#2A3142; --navy:#AFC2EE; --navy-2:#8FA6E0;
+      --ink:#EFE9D8; --paper:#15130F; --panel:#1C1A14; --line:#3A3528;
+      --indigo:#9CB4DE; --ink-soft:#A39E8C;
     }
   }
   :root[data-theme="dark"]{
-    --bg:#10131C; --panel:#171B28; --ink:#EAEDF5; --ink-soft:#9BA3B8;
-    --mist:#2A3142; --navy:#AFC2EE; --navy-2:#8FA6E0;
+    --ink:#EFE9D8; --paper:#15130F; --panel:#1C1A14; --line:#3A3528;
+    --indigo:#9CB4DE; --ink-soft:#A39E8C;
   }
   *{box-sizing:border-box;}
   html{scroll-padding-top:env(safe-area-inset-top,0px);}
   body{
-    margin:0; background:var(--bg); color:var(--ink);
-    font-family:'Inter',system-ui,sans-serif;
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
     min-height:100%;
   }
-  .wrap{max-width:980px; margin:0 auto; padding:2.2rem 1.25rem 3rem;}
-  header{margin-bottom:1.6rem;}
+  .wrap{max-width:1000px; margin:0 auto; padding:2.4rem 1.4rem 3.5rem;}
+  .eyebrow{
+    font-size:.76rem; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--brass); font-weight:600; margin:0 0 .5rem;
+  }
   h1{
-    font-family:'Source Serif 4',Georgia,serif; font-weight:600;
-    font-size:clamp(1.7rem,4vw,2.5rem); margin:0 0 .35rem; color:var(--navy-2);
-    letter-spacing:-0.01em;
+    font-family:'Fraunces',Georgia,serif; font-weight:600;
+    font-size:clamp(1.9rem,4.4vw,2.7rem); margin:0 0 .4rem; color:var(--indigo);
+    letter-spacing:-0.01em; line-height:1.08;
   }
-  header p{margin:0; color:var(--ink-soft); font-size:1rem; max-width:52ch;}
+  .lede{margin:0 0 2rem; color:var(--ink-soft); font-size:1rem; max-width:56ch; line-height:1.55;}
 
+  /* ---------- Hero: barometer dial ---------- */
   .hero{
-    display:grid; grid-template-columns:1.1fr 0.9fr; gap:1.1rem;
-    margin-bottom:1.4rem;
+    display:grid; grid-template-columns:280px 1fr; gap:2rem; align-items:center;
+    background:var(--panel); border:1px solid var(--line); border-radius:18px;
+    padding:2rem; margin-bottom:1.6rem;
   }
-  @media (max-width:720px){ .hero{grid-template-columns:1fr;} }
+  @media (max-width:680px){ .hero{grid-template-columns:1fr; text-align:center; padding:1.6rem;} }
 
-  .scene-card, .result-card, .inputs-card{
-    background:var(--panel); border:1px solid var(--mist); border-radius:var(--radius);
-    padding:1.3rem;
+  .dial-wrap{display:flex; justify-content:center;}
+  .dial-wrap svg{width:240px; height:240px;}
+  #needleGroup{ transform-origin:120px 120px; transition:transform .5s cubic-bezier(.34,1.3,.4,1); }
+  .dial-tip{ transition:fill .4s ease; }
+
+  .verdict-eyebrow{
+    font-size:.78rem; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--ink-soft); font-weight:600; margin:0 0 .3rem;
   }
-
-  .scene-card{display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:260px;}
-  .scene-card svg{width:100%; max-width:320px; height:auto;}
-
-  .result-card{display:flex; flex-direction:column; justify-content:center; gap:.6rem;}
   .result-label{
-    font-family:'Source Serif 4',Georgia,serif; font-weight:600;
-    font-size:clamp(1.6rem,4.5vw,2.1rem); transition:color .35s ease;
+    font-family:'Fraunces',Georgia,serif; font-weight:700;
+    font-size:clamp(2.1rem,5.5vw,3.1rem); line-height:1.02; margin:0 0 .6rem;
+    transition:color .4s ease;
   }
-  .result-label.rain{color:var(--rain);}
-  .result-label.norain{color:var(--sun);}
-  .result-sub{color:var(--ink-soft); font-size:.92rem; line-height:1.5;}
+  .result-label.rain{color:var(--storm);}
+  .result-label.norain{color:var(--teal);}
+  .result-sub{color:var(--ink-soft); font-size:.96rem; line-height:1.55; max-width:42ch;}
+  .result-pct{
+    font-family:'IBM Plex Sans',sans-serif; font-weight:600; font-size:.88rem;
+    color:var(--ink); margin-top:.7rem; display:inline-block;
+    border:1px solid var(--line); border-radius:999px; padding:.3rem .8rem;
+  }
 
-  .gauge-row{display:flex; align-items:center; gap:.9rem; margin-top:.2rem;}
-  .gauge{position:relative; width:84px; height:84px; flex:0 0 auto;}
-  .gauge svg{transform:rotate(-90deg);}
-  .gauge-pct{
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    font-weight:700; font-size:1rem; font-variant-numeric:tabular-nums;
+  /* ---------- Instrument panel ---------- */
+  .panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:18px;
+    padding:1.8rem 2rem 2.2rem;
   }
-  .gauge-text{font-size:.88rem; color:var(--ink-soft); line-height:1.4;}
+  @media (max-width:680px){ .panel{padding:1.4rem;} }
 
-  .inputs-card h2{
-    font-family:'Source Serif 4',Georgia,serif; font-weight:600; font-size:1.15rem;
-    margin:0 0 1rem; color:var(--navy-2);
+  .section-title{
+    font-family:'Fraunces',Georgia,serif; font-weight:600; font-size:1.05rem;
+    color:var(--indigo); margin:1.7rem 0 1rem; padding-top:1.3rem;
+    border-top:1px solid var(--line); position:relative;
   }
-  .grid{display:grid; grid-template-columns:1fr 1fr; gap:1.1rem 1.5rem;}
-  @media (max-width:560px){ .grid{grid-template-columns:1fr;} }
+  .section-title:first-of-type{ margin-top:0; padding-top:0; border-top:none; }
+  .section-title::before{
+    content:''; position:absolute; top:-1px; left:0; width:40px; height:2px;
+    background:var(--brass);
+  }
+  .section-title:first-of-type::before{ display:none; }
+
+  .place-row{display:flex; gap:.6rem; flex-wrap:wrap;}
+  .place-row input[type=text]{
+    flex:1; min-width:200px; padding:.6rem .8rem; border-radius:9px;
+    border:1px solid var(--line); background:var(--paper); color:var(--ink);
+    font-family:inherit; font-size:.94rem;
+  }
+  .btn-brass{
+    padding:.6rem 1.2rem; border-radius:9px; border:1px solid var(--brass);
+    background:var(--brass); color:#FBF6EC; font-weight:600; cursor:pointer;
+    font-size:.9rem; font-family:inherit; transition:filter .15s ease;
+  }
+  .btn-brass:hover{filter:brightness(1.08);}
+  .place-status{font-size:.82rem; color:var(--ink-soft); margin-top:.5rem; min-height:1.2em;}
+
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1.3rem 1.6rem;}
+  @media (max-width:760px){ .grid{grid-template-columns:1fr 1fr;} }
+  @media (max-width:480px){ .grid{grid-template-columns:1fr;} }
+  .grid.two{grid-template-columns:1fr 1fr;}
+  @media (max-width:480px){ .grid.two{grid-template-columns:1fr;} }
 
   .field label{
-    display:flex; justify-content:space-between; font-size:.88rem; font-weight:500;
-    margin-bottom:.4rem; color:var(--ink);
+    display:flex; justify-content:space-between; font-size:.86rem; font-weight:500;
+    margin-bottom:.5rem; color:var(--ink);
   }
-  .field label span.val{color:var(--sky); font-variant-numeric:tabular-nums; font-weight:600;}
+  .field label span.val{color:var(--storm); font-variant-numeric:tabular-nums; font-weight:600;}
   input[type=range]{
-    width:100%; appearance:none; height:5px; border-radius:3px;
-    background:var(--mist); outline:none; margin:.2rem 0;
+    width:100%; appearance:none; height:4px; border-radius:3px;
+    background:var(--line); outline:none; margin:.3rem 0;
   }
   input[type=range]::-webkit-slider-thumb{
-    appearance:none; width:17px; height:17px; border-radius:50%;
-    background:var(--navy-2); border:2px solid var(--panel); box-shadow:0 0 0 1px var(--navy-2);
+    appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--brass); border:2px solid var(--panel); box-shadow:0 0 0 1px var(--brass);
     cursor:pointer;
   }
   input[type=range]::-moz-range-thumb{
-    width:17px; height:17px; border-radius:50%; background:var(--navy-2);
-    border:2px solid var(--panel); box-shadow:0 0 0 1px var(--navy-2); cursor:pointer;
+    width:16px; height:16px; border-radius:50%; background:var(--brass);
+    border:2px solid var(--panel); box-shadow:0 0 0 1px var(--brass); cursor:pointer;
   }
-  select{
-    width:100%; padding:.5rem .6rem; border-radius:8px; border:1px solid var(--mist);
-    background:var(--panel); color:var(--ink); font-family:inherit; font-size:.92rem;
+  select, input[type=number]{
+    width:100%; padding:.55rem .7rem; border-radius:9px; border:1px solid var(--line);
+    background:var(--paper); color:var(--ink); font-family:inherit; font-size:.92rem;
   }
 
   .footnote{
-    margin-top:1.3rem; font-size:.82rem; color:var(--ink-soft); line-height:1.6;
-    border-top:1px solid var(--mist); padding-top:1rem;
+    margin-top:1.8rem; font-size:.82rem; color:var(--ink-soft); line-height:1.65;
+    border-top:1px solid var(--line); padding-top:1.1rem;
   }
   .footnote b{color:var(--ink);}
-
-  /* rain animation */
-  .drop{ animation:fall 0.9s linear infinite; opacity:0; }
-  .raining .drop{ opacity:1; }
-  @keyframes fall{
-    0%{ transform:translateY(-4px); opacity:0; }
-    15%{ opacity:.85; }
-    100%{ transform:translateY(14px); opacity:0; }
-  }
-  .sun-rays{ transform-origin:center; animation:spin 24s linear infinite; }
-  @keyframes spin{ to{ transform:rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce){
-    .drop, .sun-rays{ animation:none !important; }
-  }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <header>
-    <h1>Will it rain?</h1>
-    <p>A rainfall classifier trained on historical weather data — Decision Tree, running
-       entirely in this page. Adjust today's conditions below and the prediction updates live.</p>
-  </header>
+  <p class="eyebrow">Rainfall prediction · internship project</p>
+  <h1>Will it rain?</h1>
+  <p class="lede">A Decision Tree trained on historical weather data, running entirely in this
+     page. Adjust the readings on the instrument panel below and the dial updates live.</p>
 
   <div class="hero">
-    <div class="scene-card" id="sceneCard">
-      <svg viewBox="0 0 200 160" aria-hidden="true">
+    <div class="dial-wrap">
+      <svg viewBox="0 0 240 240" aria-hidden="true">
         <defs>
-          <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop id="skyTop" offset="0" stop-color="#BFD9F2"/>
-            <stop id="skyBot" offset="1" stop-color="#E9F2FB"/>
+          <linearGradient id="arcGrad" x1="0" y1="1" x2="1" y2="1">
+            <stop offset="0" stop-color="#2F8F80"/>
+            <stop offset="0.5" stop-color="#B9A66B"/>
+            <stop offset="1" stop-color="#2C5C86"/>
           </linearGradient>
         </defs>
-        <rect x="0" y="0" width="200" height="160" fill="url(#skyGrad)" rx="10"/>
-        <g class="sun-rays" id="sunRays">
-          <circle cx="100" cy="62" r="26" fill="#E3A542" id="sunCore"/>
-          <g stroke="#E3A542" stroke-width="4" stroke-linecap="round" id="rays">
-            <line x1="100" y1="18" x2="100" y2="6"/>
-            <line x1="144" y1="62" x2="156" y2="62"/>
-            <line x1="100" y1="106" x2="100" y2="118"/>
-            <line x1="56" y1="62" x2="44" y2="62"/>
-            <line x1="131" y1="31" x2="140" y2="22"/>
-            <line x1="131" y1="93" x2="140" y2="102"/>
-            <line x1="69" y1="93" x2="60" y2="102"/>
-            <line x1="69" y1="31" x2="60" y2="22"/>
-          </g>
+        <!-- track: 240deg sweep, gap at bottom -->
+        <path d="M 46 182 A 95 95 0 1 1 194 182" fill="none" stroke="var(--line)" stroke-width="14" stroke-linecap="round"/>
+        <path d="M 46 182 A 95 95 0 1 1 194 182" fill="none" stroke="url(#arcGrad)" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+        <!-- zone labels -->
+        <text x="38" y="205" font-family="IBM Plex Sans" font-size="11" font-weight="600" fill="var(--ink-soft)">DRY</text>
+        <text x="120" y="42" font-family="IBM Plex Sans" font-size="11" font-weight="600" fill="var(--ink-soft)" text-anchor="middle">CHANGE</text>
+        <text x="202" y="205" font-family="IBM Plex Sans" font-size="11" font-weight="600" fill="var(--ink-soft)" text-anchor="end">RAIN</text>
+        <!-- needle -->
+        <g id="needleGroup">
+          <line x1="120" y1="120" x2="120" y2="40" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
+          <circle class="dial-tip" id="dialTip" cx="120" cy="40" r="5" fill="var(--teal)"/>
         </g>
-        <g id="clouds">
-          <ellipse cx="70" cy="90" rx="38" ry="20" fill="#FFFFFF" id="cloud1"/>
-          <ellipse cx="115" cy="98" rx="46" ry="24" fill="#F3F6FA" id="cloud2"/>
-        </g>
-        <g id="rainGroup">
-          <line class="drop" x1="55" y1="118" x2="51" y2="132" stroke="var(--rain)" stroke-width="3" stroke-linecap="round" style="animation-delay:0s"/>
-          <line class="drop" x1="80" y1="122" x2="76" y2="136" stroke="var(--rain)" stroke-width="3" stroke-linecap="round" style="animation-delay:.2s"/>
-          <line class="drop" x1="105" y1="120" x2="101" y2="134" stroke="var(--rain)" stroke-width="3" stroke-linecap="round" style="animation-delay:.4s"/>
-          <line class="drop" x1="130" y1="124" x2="126" y2="138" stroke="var(--rain)" stroke-width="3" stroke-linecap="round" style="animation-delay:.1s"/>
-          <line class="drop" x1="150" y1="118" x2="146" y2="132" stroke="var(--rain)" stroke-width="3" stroke-linecap="round" style="animation-delay:.3s"/>
-        </g>
+        <circle cx="120" cy="120" r="10" fill="var(--brass)"/>
+        <circle cx="120" cy="120" r="4" fill="var(--panel)"/>
       </svg>
     </div>
 
-    <div class="result-card">
+    <div>
+      <p class="verdict-eyebrow">Current reading</p>
       <div class="result-label" id="resultLabel">—</div>
-      <div class="gauge-row">
-        <div class="gauge">
-          <svg width="84" height="84" viewBox="0 0 84 84">
-            <circle cx="42" cy="42" r="36" fill="none" stroke="var(--mist)" stroke-width="8"/>
-            <circle id="gaugeArc" cx="42" cy="42" r="36" fill="none" stroke="var(--sky)"
-                    stroke-width="8" stroke-linecap="round"
-                    stroke-dasharray="226.19" stroke-dashoffset="226.19"/>
-          </svg>
-          <div class="gauge-pct" id="gaugePct">0%</div>
-        </div>
-        <div class="gauge-text">Estimated chance of rain, from the leaf node the inputs land on in the trained tree.</div>
-      </div>
-      <div class="result-sub" id="resultSub"></div>
+      <p class="result-sub" id="resultSub"></p>
+      <span class="result-pct" id="resultPct">0% chance of rain</span>
     </div>
   </div>
 
-  <div class="inputs-card">
-    <h2>Location &amp; date</h2>
-    <div class="field" style="margin-bottom:1.1rem;">
-      <label for="placeSearch">Place name — any city, district or town</label>
-      <div style="display:flex; gap:.5rem;">
-        <input type="text" id="placeSearch" placeholder="e.g. Chennai, or Paris, or Nairobi"
-               style="flex:1; padding:.5rem .7rem; border-radius:8px; border:1px solid var(--mist); background:var(--panel); color:var(--ink); font-family:inherit; font-size:.92rem;">
-        <button type="button" id="findBtn" style="padding:.5rem 1rem; border-radius:8px; border:none; background:var(--navy-2); color:#fff; font-weight:600; cursor:pointer; font-size:.88rem;">Find</button>
-      </div>
-      <div id="placeStatus" style="font-size:.82rem; color:var(--ink-soft); margin-top:.4rem; min-height:1.2em;">Not looked up yet — using default coordinates below.</div>
+  <div class="panel">
+
+    <div class="section-title">Location</div>
+    <div class="place-row">
+      <input type="text" id="placeSearch" placeholder="e.g. Chennai, or Paris, or Nairobi">
+      <button type="button" class="btn-brass" id="findBtn">Find</button>
     </div>
-    <div class="grid">
+    <div class="place-status" id="placeStatus">Not looked up yet — using the default coordinates below.</div>
+    <div class="grid two" style="margin-top:1.1rem;">
       <div class="field">
         <label for="lat">Latitude <span class="val"><span id="latVal">12.9716</span></span></label>
-        <input type="number" id="lat" value="12.9716" step="0.0001" style="width:100%; padding:.45rem .6rem; border-radius:8px; border:1px solid var(--mist); background:var(--panel); color:var(--ink); font-family:inherit; font-size:.92rem;">
+        <input type="number" id="lat" value="12.9716" step="0.0001">
       </div>
       <div class="field">
         <label for="lon">Longitude <span class="val"><span id="lonVal">77.5946</span></span></label>
-        <input type="number" id="lon" value="77.5946" step="0.0001" style="width:100%; padding:.45rem .6rem; border-radius:8px; border:1px solid var(--mist); background:var(--panel); color:var(--ink); font-family:inherit; font-size:.92rem;">
+        <input type="number" id="lon" value="77.5946" step="0.0001">
       </div>
+    </div>
+
+    <div class="section-title">Date</div>
+    <div class="grid two">
       <div class="field">
         <label for="mo">Month <span class="val" id="moVal">Jun</span></label>
         <select id="mo">
@@ -227,7 +225,7 @@
       </div>
     </div>
 
-    <h2 style="margin-top:1.6rem;">Humidity &amp; pressure</h2>
+    <div class="section-title">Humidity &amp; pressure</div>
     <div class="grid">
       <div class="field">
         <label for="rh2m">Relative humidity <span class="val"><span id="rh2mVal">62</span>%</span></label>
@@ -247,7 +245,7 @@
       </div>
     </div>
 
-    <h2 style="margin-top:1.6rem;">Temperature</h2>
+    <div class="section-title">Temperature</div>
     <div class="grid">
       <div class="field">
         <label for="t2mmax">Max temperature <span class="val"><span id="t2mmaxVal">30</span>°C</span></label>
@@ -263,7 +261,7 @@
       </div>
     </div>
 
-    <h2 style="margin-top:1.6rem;">Wind &amp; sun</h2>
+    <div class="section-title">Wind &amp; sun</div>
     <div class="grid">
       <div class="field">
         <label for="ws50m">Wind speed <span class="val"><span id="ws50mVal">4.7</span> m/s</span></label>
@@ -282,22 +280,20 @@
     <div class="footnote">
       <b>How this works:</b> a Decision Tree was trained on the project's weather dataset
       (humidity, temperature, pressure, wind and location) to classify whether a day had
-      measurable rainfall. Earlier versions of this tool fixed location to 5 pre-set
-      districts; this version instead uses plain latitude/longitude, so it accepts
-      <b>any place name</b> via the free lookup above, or manual coordinates. The tree's
-      rules were exported straight into the JavaScript running on this page — no server or
-      API call needed for the prediction itself, only for the optional place-name lookup.
-      Test-set accuracy: <b>76.1%</b>. Year and wet-bulb temperature (negligible importance)
-      are held at typical dataset values for simplicity.
+      measurable rainfall. It uses plain latitude/longitude rather than a fixed list of
+      district names, so it works for any place — type a name above and click
+      <b>Find</b> (needs internet access in your own browser), or enter coordinates by hand.
+      The tree's rules run directly as JavaScript on this page — no server needed for the
+      prediction itself. Test-set accuracy: <b>76.1%</b>. Year and wet-bulb temperature
+      (negligible importance) are held at typical dataset values for simplicity.
     </div>
   </div>
 </div>
 
 <script>
 // ---- Decision tree exported from the trained sklearn model ----
-// Retrained WITHOUT a fixed district category — LATITUDE/LONGITUDE
-// carry the location signal instead, so this works for any place,
-// not just the 5 districts in the original training dataset.
+// Uses LATITUDE/LONGITUDE rather than a fixed district category, so it
+// works for any place, not just the 5 districts in the original dataset.
 function predictTree(f){
   if (f.RH2M <= 70.0050) {
     if (f.TS <= 31.2950) {
@@ -406,23 +402,18 @@ function predictTree(f){
   }
 }
 
-// Only genuinely negligible-importance features stay fixed
 const DEFAULTS = { YEAR: 2022.5, T2MWET: 24.85 };
-
 const monthNames = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-// Same thresholds as api/common_features.py — must stay in sync
 function pressureCategoryEnc(ps){
-  // alphabetical encoding used at training time: High=0, Low=1, Medium=2
-  if (ps < 96.2) return 1;       // Low
-  if (ps < 97.0) return 2;       // Medium
-  return 0;                      // High
+  if (ps < 96.2) return 1;   // Low
+  if (ps < 97.0) return 2;   // Medium
+  return 0;                  // High
 }
 function windCategoryEnc(ws){
-  // alphabetical encoding: Calm=0, Moderate=1, Strong=2
-  if (ws < 3) return 0;          // Calm
-  if (ws < 7) return 1;          // Moderate
-  return 2;                      // Strong
+  if (ws < 3) return 0;      // Calm
+  if (ws < 7) return 1;      // Moderate
+  return 2;                  // Strong
 }
 
 const els = {
@@ -442,13 +433,6 @@ const els = {
   uv: document.getElementById('uv'),
 };
 
-const GAUGE_CIRC = 226.19;
-
-// Free, no-key geocoding lookup (Open-Meteo) so ANY place name can be
-// turned into coordinates. Needs internet access in your own browser;
-// if it fails (offline, or blocked in a sandboxed preview), the
-// latitude/longitude fields above can still be typed in by hand —
-// the prediction works the same either way.
 async function findPlace(){
   const q = document.getElementById('placeSearch').value.trim();
   const status = document.getElementById('placeStatus');
@@ -523,43 +507,32 @@ function update(){
 
   const label = document.getElementById('resultLabel');
   const sub = document.getElementById('resultSub');
-  const scene = document.getElementById('sceneCard');
-  const gaugeArc = document.getElementById('gaugeArc');
-  const gaugePct = document.getElementById('gaugePct');
+  const pctBadge = document.getElementById('resultPct');
+  const needleGroup = document.getElementById('needleGroup');
+  const dialTip = document.getElementById('dialTip');
 
-  gaugeArc.setAttribute('stroke-dashoffset', GAUGE_CIRC * (1 - result.probaRain));
-  gaugePct.textContent = pct + '%';
+  // probaRain 0 -> -120deg (DRY), 1 -> +120deg (RAIN), 0.5 -> 0deg (CHANGE)
+  const angle = (result.probaRain - 0.5) * 240;
+  needleGroup.style.transform = 'rotate(' + angle + 'deg)';
+
+  pctBadge.textContent = pct + '% chance of rain';
 
   if (result.pred === 1){
     label.textContent = 'Rain likely';
     label.className = 'result-label rain';
-    sub.textContent = 'These conditions match patterns the tree associated with rainfall in the training data.';
-    scene.classList.add('raining');
-    gaugeArc.style.stroke = 'var(--rain)';
-    document.getElementById('skyTop').setAttribute('stop-color', '#9FB7D6');
-    document.getElementById('skyBot').setAttribute('stop-color', '#C9D8EA');
-    document.getElementById('sunCore').setAttribute('opacity', '0.15');
-    document.getElementById('rays').setAttribute('opacity', '0.15');
-    document.getElementById('cloud1').setAttribute('fill', '#C7D1DE');
-    document.getElementById('cloud2').setAttribute('fill', '#AAB7C9');
+    sub.textContent = 'These readings match patterns the tree associated with rainfall in the training data.';
+    dialTip.setAttribute('fill', 'var(--storm)');
   } else {
     label.textContent = 'No rain expected';
     label.className = 'result-label norain';
-    sub.textContent = 'These conditions match patterns the tree associated with dry days in the training data.';
-    scene.classList.remove('raining');
-    gaugeArc.style.stroke = 'var(--sun)';
-    document.getElementById('skyTop').setAttribute('stop-color', '#BFD9F2');
-    document.getElementById('skyBot').setAttribute('stop-color', '#E9F2FB');
-    document.getElementById('sunCore').setAttribute('opacity', '1');
-    document.getElementById('rays').setAttribute('opacity', '1');
-    document.getElementById('cloud1').setAttribute('fill', '#FFFFFF');
-    document.getElementById('cloud2').setAttribute('fill', '#F3F6FA');
+    sub.textContent = 'These readings match patterns the tree associated with dry days in the training data.';
+    dialTip.setAttribute('fill', 'var(--teal)');
   }
 }
 
 Object.values(els).forEach(el => {
   el.addEventListener('input', update);
-  el.addEventListener('change', update); // belt-and-suspenders for <select>
+  el.addEventListener('change', update);
 });
 update();
 </script>
