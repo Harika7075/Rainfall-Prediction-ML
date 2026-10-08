@@ -45,12 +45,30 @@
   .lede{margin:0 0 2rem; color:var(--ink-soft); font-size:1rem; max-width:56ch; line-height:1.55;}
 
   /* ---------- Hero: barometer dial ---------- */
-  .hero{
-    display:grid; grid-template-columns:280px 1fr; gap:2rem; align-items:center;
-    background:var(--panel); border:1px solid var(--line); border-radius:18px;
-    padding:2rem; margin-bottom:1.6rem;
+  .layout{
+    display:grid; grid-template-columns:330px 1fr; gap:1.6rem; align-items:start;
   }
-  @media (max-width:680px){ .hero{grid-template-columns:1fr; text-align:center; padding:1.6rem;} }
+  /* result card stays in view while you scroll through the inputs */
+  .hero{
+    position:sticky; top:1.2rem; text-align:center;
+    background:var(--panel); border:1px solid var(--line); border-radius:18px;
+    padding:1.8rem 1.4rem 1.6rem;
+  }
+  .hero .result-sub{margin-left:auto; margin-right:auto;}
+  @media (max-width:860px){
+    .layout{grid-template-columns:1fr; gap:1rem;}
+    /* on phones/tablets: compact result bar pinned to the top of the screen */
+    .hero{
+      top:0; z-index:10; display:grid; grid-template-columns:92px 1fr; gap:.9rem;
+      align-items:center; text-align:left; padding:.8rem 1rem; border-radius:14px;
+      box-shadow:0 6px 18px rgba(16,24,43,.12);
+    }
+    .hero .dial-wrap svg{width:92px; height:92px;}
+    .hero .dial-wrap text{display:none;}
+    .hero .verdict-eyebrow, .hero .result-sub{display:none;}
+    .hero .result-label{font-size:1.5rem; margin:0 0 .35rem;}
+    .hero .result-pct{margin-top:0; font-size:.8rem; padding:.2rem .6rem;}
+  }
 
   .dial-wrap{display:flex; justify-content:center;}
   .dial-wrap svg{width:240px; height:240px;}
@@ -147,11 +165,11 @@
 <body>
 <div class="wrap">
 
-  <p class="eyebrow">Rainfall prediction · internship project</p>
   <h1>Will it rain?</h1>
   <p class="lede">A Decision Tree trained on historical weather data, running entirely in this
-     page. Adjust the readings on the instrument panel below and the dial updates live.</p>
+     page. Adjust the readings on the panel and the dial updates live.</p>
 
+  <div class="layout">
   <div class="hero">
     <div class="dial-wrap">
       <svg viewBox="0 0 240 240" aria-hidden="true">
@@ -398,6 +416,7 @@
       prediction itself. Test-set accuracy: <b>76.1%</b>. Year and wet-bulb temperature
       (negligible importance) are held at typical dataset values for simplicity.
     </div>
+  </div>
   </div>
 </div>
 
